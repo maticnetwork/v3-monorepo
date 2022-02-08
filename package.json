@@ -1,0 +1,11 @@
+{
+  "name": "v3-monorepo",
+  "packageManager": "yarn@3.1.1",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}
