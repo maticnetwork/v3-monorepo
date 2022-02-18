@@ -148,7 +148,7 @@ library BytesLib {
     // Pad a bytes array to 32 bytes
     function leftPad(bytes memory _bytes) internal pure returns (bytes memory) {
         // may underflow if bytes.length < 32. Hence using SafeMath.sub
-        bytes memory newBytes = new bytes(SafeMath.sub(32, _bytes.length));
+        bytes memory newBytes = new bytes(32 - _bytes.length);
         return concat(newBytes, _bytes);
     }
 

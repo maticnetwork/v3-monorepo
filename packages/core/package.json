@@ -1,11 +1,14 @@
 {
   "name": "core",
   "version": "0.0.1",
-  "description": "Set of core contract for Polygon sidechain",
+  "description": "Set of core contracts for Polygon sidechain",
   "packageManager": "yarn@3.1.1",
   "repository": "git@github.com:maticnetwork/v3-monorepo.git",
   "author": "Polygon Technology",
   "license": "MIT",
+  "scripts": {
+    "compile": "yarn hardhat compile"
+  },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.4",
     "@nomiclabs/hardhat-etherscan": "^3.0.0",

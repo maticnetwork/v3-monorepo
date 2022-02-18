@@ -1,7 +1,7 @@
-pragma solidity 0.5.17;
+pragma solidity ^0.8.0;
 
-import {RLPReader} from "solidity-rlp/contracts/RLPReader.sol";
-import {BytesLib} from "./BytesLib.sol";
+import "./rlp/RLPReader.sol";
+import "./BytesLib.sol";
 
 library ExitPayloadReader {
   using RLPReader for bytes;

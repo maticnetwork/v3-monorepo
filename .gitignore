@@ -13,3 +13,5 @@ cache
 artifacts
 
 .yarn/install-state.gz
+
+packages/core/typechain-types/
