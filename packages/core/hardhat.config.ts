@@ -6,6 +6,8 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import './src/type-extensions'
+import './tasks'
 
 dotenv.config();
 
@@ -38,6 +40,10 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
+  paths: {
+    sourceTemplates: 'contracts',
+    sources: 'contracts-out'
+  }
 };
 
 export default config;

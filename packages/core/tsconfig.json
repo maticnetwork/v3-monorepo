@@ -18,7 +18,7 @@
     "noImplicitAny": false
   },
   "include": [
-    "./scripts", "./test", "./typechain"
+    "./scripts", "./test", "./typechain", "./src", "./tasks"
   ],
   "files": [
     "./hardhat.config.ts"
