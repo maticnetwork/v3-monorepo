@@ -5,8 +5,9 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 contract DelegationProxy is BeaconProxy {
   constructor(
         address beacon,
-        bytes memory data
+        bytes memory data,
+        address admin
     ) payable BeaconProxy(beacon, data) {
-       
+        _changeAdmin(admin);
     }
 }

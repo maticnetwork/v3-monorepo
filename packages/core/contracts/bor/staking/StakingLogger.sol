@@ -75,14 +75,14 @@ contract StakingLogger is Initializable, IDelegationLogger {
     );
 
     /// @dev Indicate to consensus module that delegator staked tokens for validator
-    event DelegatorAddStake(
+    event DelegatorStake(
         uint256 indexed validatorId,
         address indexed user,
         uint256 indexed totalStaked
     );
 
     /// @dev Indicate to consensus module that delegator removed his tokens from staking
-    event DelegatorRemoveStake(
+    event DelegatorUnstake(
         uint256 indexed validatorId,
         address indexed user,
         uint256 amount
