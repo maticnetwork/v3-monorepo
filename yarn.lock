@@ -11495,13 +11495,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"solidity-rlp@npm:^2.0.5":
-  version: 2.0.5
-  resolution: "solidity-rlp@npm:2.0.5"
-  checksum: 1673fb25082d4dabe4b1cf5b76f7734c947af39c7023b70a97e24db0c5d11714a4aead232f661170995df579840562fa62c872165914c6adc853b030697dffd0
-  languageName: node
-  linkType: hard
-
 "source-map-resolve@npm:^0.5.0":
   version: 0.5.3
   resolution: "source-map-resolve@npm:0.5.3"
@@ -12890,7 +12883,6 @@ __metadata:
     "@openzeppelin/contracts": ^4.5.0
     "@openzeppelin/contracts-upgradeable": ^4.5.1
     dotenv: ^16.0.0
-    solidity-rlp: ^2.0.5
   languageName: unknown
   linkType: soft
 
