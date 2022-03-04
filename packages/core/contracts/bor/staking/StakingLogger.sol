@@ -47,7 +47,7 @@ contract StakingLogger is Initializable, IDelegationLogger {
         external
         onlyStakingService
     {}
-    
+
     /// @dev Indicate to consensus module that validator collected his stake
     event ValidatorStakeCollected(
         address indexed user,

@@ -61,14 +61,15 @@ contract StakingSerrvice is
         return true;
     }
 
-    function epoch() external override view returns(uint256) {
+    function epoch() external view override returns (uint256) {
         return currentEpoch;
     }
 
     /** PUBLIC METHODS */
 
     function claimValidatorSlot(address slotOwner, uint256 tokenAmount)
-        external onlyWhenUnlocked
+        external
+        onlyWhenUnlocked
     {}
 
     /// @notice Remove tokens from the stake
@@ -80,7 +81,7 @@ contract StakingSerrvice is
     /// @notice Stake some tokens or available rewards
     function stake(
         uint256 validatorId,
-        uint256 tokenAmount, 
+        uint256 tokenAmount,
         bool stakeRewards
     ) external onlyValidatorSlotOwner(validatorId) {
         // require(currentValidatorSetSize() < validatorThreshold, "no more slots");
@@ -101,9 +102,11 @@ contract StakingSerrvice is
         onlyDelegation(validatorId)
     {}
 
-    function transferFunds(uint256 validatorId, uint256 amount, address to) external override returns(bool) {
-
-    }
+    function transferFunds(
+        uint256 validatorId,
+        uint256 amount,
+        address to
+    ) external override returns (bool) {}
 
     /** GOVERNANCE METHODS */
     function lock() public onlyOwner {

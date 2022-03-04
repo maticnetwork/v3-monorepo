@@ -74,18 +74,26 @@ contract Delegation is ERC20Upgradeable {
             return EXCHANGE_RATE_PRECISION;
         }
 
-        return (withdrawalTokenPool * EXCHANGE_RATE_PRECISION) / _withdrawalSharesPool;
+        return
+            (withdrawalTokenPool * EXCHANGE_RATE_PRECISION) /
+            _withdrawalSharesPool;
     }
 
     /** PUBLIC METHODS */
 
     /// @notice Delegate tokens and mint shares representing a part of the total pool of delegated tokens
-    function stake(uint256 amount, uint256 minShares) external returns(uint256 sharesMinted) {}
+    function stake(uint256 amount, uint256 minShares)
+        external
+        returns (uint256 sharesMinted)
+    {}
 
     function unstake(uint256 claimAmount, uint256 maximumSharesToBurn)
         external
     {
-        (uint256 burntShares, uint256 withdrawalShares) = _sellShares(claimAmount, maximumSharesToBurn);
+        (uint256 burntShares, uint256 withdrawalShares) = _sellShares(
+            claimAmount,
+            maximumSharesToBurn
+        );
 
         uint256 unbondNonce = unbondNonces[msg.sender] + 1;
 
@@ -101,12 +109,14 @@ contract Delegation is ERC20Upgradeable {
     }
 
     /// @notice Delegate available token rewards
-    function stakeRewards() external returns(uint256 sharesMinted) {
-
-    }
+    function stakeRewards() external returns (uint256 sharesMinted) {}
 
     /** PRIVATE METHODS */
-    function _calculateReward(address user, uint256 _rewardPerShare) private view returns (uint256) {
+    function _calculateReward(address user, uint256 _rewardPerShare)
+        private
+        view
+        returns (uint256)
+    {
         uint256 shares = balanceOf(user);
         if (shares == 0) {
             return 0;
@@ -117,25 +127,40 @@ contract Delegation is ERC20Upgradeable {
             return 0;
         }
 
-        return (_rewardPerShare - _initialRewardPerShare) * shares / REWARD_PRECISION;
+        return
+            ((_rewardPerShare - _initialRewardPerShare) * shares) /
+            REWARD_PRECISION;
     }
 
-    function _withdrawReward(address user) private returns (uint256 liquidRewards) {
+    function _withdrawReward(address user)
+        private
+        returns (uint256 liquidRewards)
+    {
         // uint256 _rewardPerShare = _calculateRewardPerShareWithRewards(
         //     stakeManager.withdrawDelegatorsReward(validatorId)
         // );
         uint256 _rewardPerShare = 0;
         liquidRewards = _calculateReward(user, _rewardPerShare);
-        
+
         rewardPerShare = _rewardPerShare;
         initalRewardPerShare[user] = _rewardPerShare;
         return liquidRewards;
     }
 
-    function _withdrawAndTransferReward(address user) private returns (uint256 withdrawnReward) {
+    function _withdrawAndTransferReward(address user)
+        private
+        returns (uint256 withdrawnReward)
+    {
         withdrawnReward = _withdrawReward(user);
         if (withdrawnReward != 0) {
-            require(stakingProvider.transferFunds(validatorId, withdrawnReward, user), "Insufficent tokens");
+            require(
+                stakingProvider.transferFunds(
+                    validatorId,
+                    withdrawnReward,
+                    user
+                ),
+                "Insufficent tokens"
+            );
             // logger.logDelegatorClaimRewards(validatorId, user, withdrawnReward);
         }
         return withdrawnReward;
@@ -152,7 +177,7 @@ contract Delegation is ERC20Upgradeable {
         );
 
         // convert requested amount back to shares
-        burntShares = claimAmount * EXCHANGE_RATE_PRECISION / exchangeRate();
+        burntShares = (claimAmount * EXCHANGE_RATE_PRECISION) / exchangeRate();
         require(burntShares <= maximumSharesToBurn, "too much slippage");
 
         _withdrawAndTransferReward(msg.sender);
@@ -160,7 +185,9 @@ contract Delegation is ERC20Upgradeable {
 
         stakingProvider.onDelegatorRemoveStake(validatorId, claimAmount);
 
-        withdrawalShares = claimAmount * EXCHANGE_RATE_PRECISION / withdrawExchangeRate();
+        withdrawalShares =
+            (claimAmount * EXCHANGE_RATE_PRECISION) /
+            withdrawExchangeRate();
         withdrawalTokenPool += claimAmount;
         withdrawalSharesPool += withdrawalShares;
 

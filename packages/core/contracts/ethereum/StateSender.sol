@@ -23,7 +23,7 @@ contract StateSender is Governable {
     );
 
     function initialize(address _governance) external initializer {
-      _init_governable(_governance);
+        _init_governable(_governance);
     }
 
     modifier onlyRegistered(address receiver) {

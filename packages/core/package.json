@@ -9,8 +9,8 @@
   "scripts": {
     "husky:precommit": "yarn lint:fix",
     "compile": "yarn hardhat compile",
-    "lint": "npx eslint --cache \"src/**/*.{js,jsx,ts,tsx}\"",
-    "lint:fix": "npx eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\""
+    "lint": "npx eslint --cache \"src/**/*.{js,jsx,ts,tsx}\" && npx prettier --list-different 'contracts/**/*.sol'",
+    "lint:fix": "npx eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\" && prettier --write 'contracts/**/*.sol'"
   },
   "engines": {
     "node": ">=14"

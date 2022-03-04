@@ -12,10 +12,7 @@ contract Governable is Initializable {
     }
 
     function _assertGovernance() private view {
-        require(
-            msg.sender == governance,
-            "not governance"
-        );
+        require(msg.sender == governance, "not governance");
     }
 
     function _init_governable(address _governance) internal onlyInitializing {

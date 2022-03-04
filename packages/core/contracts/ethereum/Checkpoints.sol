@@ -49,12 +49,7 @@ contract Checkpoints is Governable {
             );
         require(CHAIN_ID == chainId, "Invalid bor chain id");
 
-        _validateAndSubmitCheckpoint(
-          proposer,
-          start,
-          end,
-          rootHash
-        );
+        _validateAndSubmitCheckpoint(proposer, start, end, rootHash);
     }
 
     /** PRIVATE METHODS */
@@ -69,7 +64,7 @@ contract Checkpoints is Governable {
         uint256 _checkpointId = checkpointId;
 
         if (_checkpointId != 0) {
-            // not a first checkpoint, 
+            // not a first checkpoint,
             startBorBlock = checkpoints[_checkpointId].end + 1;
         }
         if (startBorBlock != start) {

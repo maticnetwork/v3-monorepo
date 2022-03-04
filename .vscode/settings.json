@@ -6,7 +6,11 @@
   "editor.codeActionsOnSave": {
       "source.fixAll.eslint": true
   },
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   "eslint.validate": ["javascript"],
   "editor.bracketPairColorization.enabled": true,
-  "editor.guides.bracketPairs":"active"
+  "editor.guides.bracketPairs":"active",
+  "[solidity]": {
+    "editor.defaultFormatter": "JuanBlanco.solidity"
+  }
 }
