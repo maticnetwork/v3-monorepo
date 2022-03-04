@@ -16,3 +16,4 @@ artifacts
 
 packages/core/typechain-types/
 packages/core/contracts-out/
+packages/core/.eslintcache
