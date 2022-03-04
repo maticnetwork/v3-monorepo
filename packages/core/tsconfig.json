@@ -18,7 +18,7 @@
     "noImplicitAny": false
   },
   "include": [
-    "./scripts", "./test", "./typechain", "./src", "./tasks"
+    "./scripts", "./test", "./typechain-types", "./src", "./tasks"
   ],
   "files": [
     "./hardhat.config.ts"
@@ -26,6 +26,8 @@
   "types": [
     "mocha",
     "node",
-    "chai"
+    "chai",
+    "node_modules/hardhat/types",
+    "./src/type-extensions"
   ]
 }

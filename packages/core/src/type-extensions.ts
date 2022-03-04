@@ -43,6 +43,10 @@ extendConfig(
     }
 
     config.verify.contracts = contracts
-    config.paths.sourceTemplates = userConfig.paths?.sourceTemplates!
+
+    const paths = userConfig.paths
+    if (paths) {
+      config.paths.sourceTemplates = paths.sourceTemplates
+    }
   }
 )

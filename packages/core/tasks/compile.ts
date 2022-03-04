@@ -5,12 +5,12 @@ import fs from 'fs'
 import path from 'path'
 
 // https:// stackoverflow.com/a/45130990/1223007
-async function* getFiles(dir) {
-  const dirents = await fs.promises.readdir(dir, {withFileTypes: true})
+async function * getFiles(dir: string) {
+  const dirents = await fs.promises.readdir(dir, { withFileTypes: true })
   for (const dirent of dirents) {
     const res = path.join(dir, dirent.name)
     if (dirent.isDirectory()) {
-      yield* getFiles(res)
+      yield * getFiles(res)
     } else {
       yield res
     }
@@ -23,8 +23,8 @@ task(TASK_COMPILE, async function(args, { config, network }, runSuper) {
     let content = fs.readFileSync(file).toString()
     const matches = content.matchAll(/(?:#if\s+(.+)\s*)([\w(<>){}\.\s;="]+)(?:#endif)/igm)
     const blocks = {}
-    for (const m of matches) {
-      const [ifblock, networkCondition, code] = m
+    for (const match of matches) {
+      const [ifblock, networkCondition, code] = match
       blocks[networkCondition] = {
         ifblock,
         code
@@ -34,7 +34,11 @@ task(TASK_COMPILE, async function(args, { config, network }, runSuper) {
     // remove code that doesn't match network choice
     for (const networkCondition in blocks) {
       const block = blocks[networkCondition]
-      const conditions = networkCondition.match(/\b\w+/igm)!
+      const conditions = networkCondition.match(/\b\w+/igm)
+      if (!conditions) {
+        continue
+      }
+
       const hasNetwork = conditions.some(x => x === network.name)
       if (hasNetwork) {
         content = content.replace(block.ifblock, block.code)

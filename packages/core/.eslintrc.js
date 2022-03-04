@@ -3,22 +3,42 @@ module.exports = {
     browser: false,
     es2021: true,
     mocha: true,
-    node: true,
+    node: true
   },
-  plugins: ["@typescript-eslint"],
-  extends: [
-    "standard",
-    "plugin:prettier/recommended",
-    "plugin:node/recommended",
+  ignorePatterns: [
+    'node_modules',
+    'typechain-types'
   ],
-  parser: "@typescript-eslint/parser",
+  plugins: ['@typescript-eslint', 'import'],
+  extends: [
+    'standard',
+    'eslint:recommended',
+    'plugin:@typescript-eslint/eslint-recommended',
+    'plugin:@typescript-eslint/recommended'
+  ],
+  // parser: '@typescript-eslint/parser',
   parserOptions: {
-    ecmaVersion: 12,
+    ecmaVersion: 'latest', // Allows for the parsing of modern ECMAScript features
+    sourceType: 'module' // Allows for the use of imports
   },
   rules: {
-    "node/no-unsupported-features/es-syntax": [
-      "error",
-      { ignores: ["modules"] },
+    'node/no-unsupported-features/es-syntax': [
+      'error',
+      { ignores: ['modules'] }
     ],
+    'space-before-function-paren': ['error', 'never'],
+    quotes: ['error', 'single'],
+    semi: ['error', 'never'],
+    'no-useless-escape': 0
   },
-};
+  settings: {
+    'import/parsers': {
+      '@typescript-eslint/parser': ['.ts', '.tsx']
+    },
+    'import/resolver': {
+      typescript: {
+        alwaysTryTypes: true
+      }
+    }
+  }
+}
