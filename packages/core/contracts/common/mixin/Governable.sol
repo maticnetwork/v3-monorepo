@@ -14,7 +14,7 @@ contract Governable is Initializable {
     function _assertGovernance() private view {
         require(
             msg.sender == governance,
-            "Only governance contract is authorized"
+            "not governance"
         );
     }
 

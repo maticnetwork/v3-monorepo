@@ -9,6 +9,6 @@ contract SystemCall {
   }
 
   function _assertSystemCall() private view {
-    require(msg.sender == SYSTEM_ADDRESS, "Not System Addess!");
+    require(msg.sender == SYSTEM_ADDRESS, "not system");
   }
 }
