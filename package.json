@@ -2,12 +2,16 @@
   "name": "v3-monorepo",
   "packageManager": "yarn@3.1.1",
   "private": true,
+  "scripts": {
+    "postinstall": "husky install"
+  },
   "workspaces": [
     "packages/*"
   ],
   "dependencies": {
     "@openzeppelin/contracts": "^4.5.0",
     "@openzeppelin/contracts-upgradeable": "^4.5.1",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "husky": "^7.0.4"
   }
 }
