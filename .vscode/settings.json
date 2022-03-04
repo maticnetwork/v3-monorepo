@@ -2,5 +2,11 @@
   "search.exclude": {
     "**/.yarn": true,
     "**/.pnp.*": true
-  }
+  },
+  "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+  },
+  "eslint.validate": ["javascript"],
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs":"active"
 }
