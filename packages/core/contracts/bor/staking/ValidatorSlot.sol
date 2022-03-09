@@ -8,9 +8,10 @@ contract ValidatorSlot is ERC721, Ownable {
 
     constructor() ERC721("Validator Slot", "VS") {}
 
-    function mint(address to) external onlyOwner {
+    function mint(address to) external onlyOwner returns (uint256) {
         slotId += 1;
         _mint(to, slotId);
+        return slotId;
     }
 
     function burn(uint256 tokenId) external onlyOwner {

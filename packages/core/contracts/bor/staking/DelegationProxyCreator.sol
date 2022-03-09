@@ -10,7 +10,7 @@ contract DelegationProxyCreator {
         beacon = _beacon;
     }
 
-    function createProxy(uint256 validatorId) external returns (address) {
+    function create(uint256 validatorId) external returns (address) {
         DelegationProxy proxy = new DelegationProxy(
             beacon,
             abi.encodeWithSelector(

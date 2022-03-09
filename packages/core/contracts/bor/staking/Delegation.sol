@@ -19,7 +19,7 @@ contract Delegation is ERC20Upgradeable {
     uint256 public validatorId;
     uint256 public tokensLocked;
 
-    mapping(address => uint256) public initalRewardPerShare;
+    mapping(address => uint256) public startingEpoch;
     mapping(address => mapping(uint256 => DelegatorUnbond)) public unbonds;
     mapping(address => uint256) public unbondNonces;
 
@@ -122,14 +122,14 @@ contract Delegation is ERC20Upgradeable {
             return 0;
         }
 
-        uint256 _initialRewardPerShare = initalRewardPerShare[user];
-        if (_initialRewardPerShare == _rewardPerShare) {
-            return 0;
-        }
+        // uint256 _initialRewardPerShare = initalRewardPerShare[user];
+        // if (_initialRewardPerShare == _rewardPerShare) {
+        //     return 0;
+        // }
 
-        return
-            ((_rewardPerShare - _initialRewardPerShare) * shares) /
-            REWARD_PRECISION;
+        // return
+        //     ((_rewardPerShare - _initialRewardPerShare) * shares) /
+        //     REWARD_PRECISION;
     }
 
     function _withdrawReward(address user)
@@ -143,7 +143,7 @@ contract Delegation is ERC20Upgradeable {
         liquidRewards = _calculateReward(user, _rewardPerShare);
 
         rewardPerShare = _rewardPerShare;
-        initalRewardPerShare[user] = _rewardPerShare;
+        startingEpoch[user] = stakingProvider.epoch();
         return liquidRewards;
     }
 
@@ -183,7 +183,7 @@ contract Delegation is ERC20Upgradeable {
         _withdrawAndTransferReward(msg.sender);
         _burn(msg.sender, burntShares);
 
-        stakingProvider.onDelegatorRemoveStake(validatorId, claimAmount);
+        stakingProvider.onDelegatorStake(validatorId, claimAmount, false);
 
         withdrawalShares =
             (claimAmount * EXCHANGE_RATE_PRECISION) /
@@ -209,7 +209,7 @@ contract Delegation is ERC20Upgradeable {
         // clamp amount of tokens in case resulted shares requires less tokens than anticipated
         amount = (rate * shares) / EXCHANGE_RATE_PRECISION;
 
-        stakingProvider.onDelgatorAddStake(validatorId, amount);
+        stakingProvider.onDelegatorStake(validatorId, amount, true);
 
         tokensLocked += amount;
 

@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./interfaces/IStakingServiceReader.sol";
 import "./interfaces/IDelegationLogger.sol";
+import "./interfaces/IStakingLogger.sol";
 
-contract StakingLogger is Initializable, IDelegationLogger {
+contract StakingLogger is Initializable, IDelegationLogger, IStakingLogger {
     mapping(uint256 => uint256) public validatorNonce;
     IStakingServiceReader public stakingService;
 
@@ -26,27 +27,37 @@ contract StakingLogger is Initializable, IDelegationLogger {
     }
 
     /// @dev Indicate to consensus module that new validator joined
-    /// @param signer Signer address used to sign checkpoints
-    /// @param signerPubkey Raw signer public key used to sign checkpoints
+    /// @param signerKey Raw signer public key used to sign checkpoints
     /// @param validatorId ID of the validator slot
     /// @param activationEpoch Epoch when validator starts to sign checkpoints
     /// @param tokenAmount Amount of tokens used to acquire validator slot
-    /// @param networkTokenAmount Total staked tokens in the network at the moment of acquisition
+    /// @param totalTokensLocked Total staked tokens in the network at the moment of acquisition
     /// @param nonce Event nonce
     event ValidatorJoined(
-        address indexed signer,
-        bytes signerPubkey,
+        bytes signerKey,
         uint256 indexed validatorId,
         uint256 indexed activationEpoch,
         uint256 tokenAmount,
-        uint256 networkTokenAmount,
+        uint256 totalTokensLocked,
         uint256 nonce
     );
 
-    function logValidatorSlotAcquired(uint256 validatorId)
-        external
-        onlyStakingService
-    {}
+    function logValidatorSlotAcquired(
+        bytes calldata _signerKey,
+        uint256 _validatorId,
+        uint256 _activationEpoch,
+        uint256 _tokenAmount,
+        uint256 _totalTokensLocked
+    ) external override onlyStakingService {
+        emit ValidatorJoined(
+            _signerKey,
+            _validatorId,
+            _activationEpoch,
+            _tokenAmount,
+            _totalTokensLocked,
+            _acquireNonce(_validatorId)
+        );
+    }
 
     /// @dev Indicate to consensus module that validator collected his stake
     event ValidatorStakeCollected(
@@ -87,4 +98,11 @@ contract StakingLogger is Initializable, IDelegationLogger {
         address indexed user,
         uint256 amount
     );
+
+    function _acquireNonce(uint256 _validatorId) private returns (uint256) {
+        uint256 nonce = validatorNonce[_validatorId];
+        nonce++;
+        validatorNonce[_validatorId] = nonce;
+        return nonce;
+    }
 }

@@ -1,6 +1,7 @@
 pragma solidity ^0.8.0;
 
 import "../common/mixin/Governable.sol";
+import "./EthereumValidatorSet.sol";
 
 contract Checkpoints is Governable {
     /// @dev Explain to a developer any extra details
@@ -27,15 +28,28 @@ contract Checkpoints is Governable {
 
     uint256 public constant CHAIN_ID = 15001;
     uint256 public checkpointId;
+    EthereumValidatorSet public validatorSet;
 
     mapping(uint256 => Checkpoint) public checkpoints;
 
     function submit(
-        bytes calldata data,
+        bytes memory data,
+        address[] memory _validators,
+        uint256[] memory _powers,
+        bytes32 _dataHash,
         uint8[] memory _v,
         bytes32[] memory _r,
         bytes32[] memory _s
     ) external {
+        validatorSet.checkValidatorSignatures(
+            _validators,
+            _powers,
+            _v,
+            _r,
+            _s,
+            _dataHash
+        );
+
         (
             address proposer,
             uint256 start,
