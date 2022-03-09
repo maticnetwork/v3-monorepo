@@ -1,7 +1,6 @@
 import chalk from 'chalk'
-import { ReleaseRegistry, cc, GovernanceRepositoryLink } from './index'
+import { ReleaseRegistry, cc } from './index'
 
-import '@nomiclabs/hardhat-truffle5'
 import { Artifacts } from 'hardhat/types'
 import { extractParameters } from './utils'
 import { ethers } from 'ethers'

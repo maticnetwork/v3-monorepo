@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ReleaseRegistry, stripMetadata, LibraryPositions, LibraryAddresses, linkLibraries, VerificationFailed, ProxyImplementationHasChanged } from '../lib'
+import { ReleaseRegistry, stripMetadata, LibraryPositions, LibraryAddresses, linkLibraries, VerificationFailed, ProxyImplementationHasChanged } from '../src'
 import { task } from 'hardhat/config'
 import { Artifacts } from 'hardhat/types'
 import { TASKS } from './task-names'
@@ -52,48 +52,48 @@ async function verifyBytecode(
   artifacts: Artifacts,
   web3: Web3
 ) {
-  const queue = contracts.filter(c => artifacts.artifactExists(c))
-  const registry = new ReleaseRegistry(network)
-  await registry.load()
+  // const queue = contracts.filter(c => artifacts.artifactExists(c))
+  // const registry = new ReleaseRegistry(network)
+  // await registry.load()
 
-  const visited: Set<string> = new Set(queue)
+  // const visited: Set<string> = new Set(queue)
 
-  const context: VerificationContext = {
-    registry,
-    proxy: artifacts.require('UpgradableProxy'),
-    network,
-    libraryAddresses: new LibraryAddresses(),
-    artifacts,
-    web3
-  }
+  // const context: VerificationContext = {
+  //   registry,
+  //   proxy: artifacts.require('UpgradableProxy'),
+  //   network,
+  //   libraryAddresses: new LibraryAddresses(),
+  //   artifacts,
+  //   web3
+  // }
 
-  const results: any = {}
+  // const results: any = {}
 
-  while (queue.length > 0) {
-    try {
-      const contractName = queue.pop()!
-      await validateContractBytecode(contractName!, visited, context)
-      results[contractName] = {
-        status: 'verified'
-      }
-    } catch (e: any) {
-      if (e instanceof VerificationFailed || e instanceof ProxyImplementationHasChanged) {
-        results[e.contractName] = {
-          status: 'failed',
-          reason: e.message
-        }
-      } else {
-        console.error(e)
-        break
-      }
-    }
-  }
+  // while (queue.length > 0) {
+  //   try {
+  //     const contractName = queue.pop()!
+  //     await validateContractBytecode(contractName!, visited, context)
+  //     results[contractName] = {
+  //       status: 'verified'
+  //     }
+  //   } catch (e: any) {
+  //     if (e instanceof VerificationFailed || e instanceof ProxyImplementationHasChanged) {
+  //       results[e.contractName] = {
+  //         status: 'failed',
+  //         reason: e.message
+  //       }
+  //     } else {
+  //       console.error(e)
+  //       break
+  //     }
+  //   }
+  // }
 
-  console.table(results)
+  // console.table(results)
 }
 
-task(TASKS.VERIFY_BYTECODE, async function(_, { config, network, artifacts, web3 }) {
+task(TASKS.VERIFY_BYTECODE, async function(_, { config, network, artifacts }) {
   const { contracts } = config.verify
 
-  await verifyBytecode(contracts, network.name, artifacts, web3)
+  // await verifyBytecode(contracts, network.name, artifacts, web3)
 })
