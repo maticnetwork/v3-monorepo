@@ -1,13 +1,14 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "../ChainConfig.sol";
 import "./interfaces/IDelegationLogger.sol";
 import "./interfaces/IStakingProvider.sol";
 
 contract Delegation is ERC20Upgradeable {
     struct DelegatorUnbond {
         uint256 shares;
-        uint256 withdrawEpoch;
+        uint256 timestamp;
     }
 
     uint256 constant EXCHANGE_RATE_PRECISION = 10**29;
@@ -15,6 +16,7 @@ contract Delegation is ERC20Upgradeable {
 
     IDelegationLogger public logger;
     IStakingProvider public stakingProvider;
+    ChainConfig public config;
 
     uint256 public validatorId;
     uint256 public tokensLocked;
@@ -99,7 +101,7 @@ contract Delegation is ERC20Upgradeable {
 
         DelegatorUnbond memory unbond = DelegatorUnbond({
             shares: withdrawalShares,
-            withdrawEpoch: stakingProvider.epoch()
+            timestamp: block.timestamp + config.unbondingPeriod()
         });
         unbonds[msg.sender][unbondNonce] = unbond;
         unbondNonces[msg.sender] = unbondNonce;
@@ -110,6 +112,33 @@ contract Delegation is ERC20Upgradeable {
 
     /// @notice Delegate available token rewards
     function stakeRewards() external returns (uint256 sharesMinted) {}
+
+    function claimTokens(uint256 _nonce) external returns (uint256) {
+        DelegatorUnbond memory unbond = unbonds[msg.sender][_nonce];
+
+        uint256 shares = unbond.shares;
+        require(shares != 0, "unknown unbond");
+
+        require(unbond.timestamp <= block.timestamp, "too early");
+
+        uint256 tokensToClaim = (withdrawExchangeRate() * shares) /
+            EXCHANGE_RATE_PRECISION;
+        withdrawalSharesPool -= shares;
+        withdrawalTokenPool -= tokensToClaim;
+
+        require(
+            stakingProvider.transferFunds(
+                validatorId,
+                tokensToClaim,
+                msg.sender
+            ),
+            "insufficent tokens"
+        );
+
+        delete unbonds[msg.sender][_nonce];
+
+        return tokensToClaim;
+    }
 
     /** PRIVATE METHODS */
     function _calculateReward(address user, uint256 _rewardPerShare)
@@ -183,7 +212,7 @@ contract Delegation is ERC20Upgradeable {
         _withdrawAndTransferReward(msg.sender);
         _burn(msg.sender, burntShares);
 
-        stakingProvider.onDelegatorStake(validatorId, claimAmount, false);
+        stakingProvider.onDelegation(validatorId, claimAmount, false);
 
         withdrawalShares =
             (claimAmount * EXCHANGE_RATE_PRECISION) /
@@ -209,7 +238,7 @@ contract Delegation is ERC20Upgradeable {
         // clamp amount of tokens in case resulted shares requires less tokens than anticipated
         amount = (rate * shares) / EXCHANGE_RATE_PRECISION;
 
-        stakingProvider.onDelegatorStake(validatorId, amount, true);
+        stakingProvider.onDelegation(validatorId, amount, true);
 
         tokensLocked += amount;
 

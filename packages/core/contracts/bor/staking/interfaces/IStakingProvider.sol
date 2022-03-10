@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 interface IStakingProvider {
-    function onDelegatorStake(
+    function onDelegation(
         uint256 validatorId,
         uint256 tokenAmount,
         bool lockTokens
