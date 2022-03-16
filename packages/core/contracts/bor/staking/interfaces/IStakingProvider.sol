@@ -7,11 +7,26 @@ interface IStakingProvider {
         bool lockTokens
     ) external;
 
-    function transferFunds(
+    function withdrawFunds(
         uint256 validatorId,
         uint256 amount,
         address to
     ) external returns (bool);
 
-    function epoch() external returns (uint256);
+    function depositFunds(
+        uint256 validatorId,
+        uint256 amount,
+        address to
+    ) external returns (bool);
+
+    function epoch() external view returns (uint256);
+
+    function withdrawDelegatorsReward(uint256 _validatorId)
+        external
+        returns (uint256);
+
+    function getDelegatorsRewardAtEpoch(uint256 _validatorId, uint256 _epoch)
+        external
+        view
+        returns (uint256);
 }

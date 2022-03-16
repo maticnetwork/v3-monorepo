@@ -21,14 +21,22 @@ contract Delegation is ERC20Upgradeable {
     uint256 public validatorId;
     uint256 public tokensLocked;
 
-    mapping(address => uint256) public startingEpoch;
+    mapping(address => uint256) public stakeEpoch;
     mapping(address => mapping(uint256 => DelegatorUnbond)) public unbonds;
     mapping(address => uint256) public unbondNonces;
 
+    // user address => ( epoch => minted shares )
+    mapping(address => mapping(uint256 => uint256)) mintedShares;
+
+    // epoch => total minted shares
+    mapping(uint256 => uint256) totalMintedShares;
+
     // track how many tokens per share to distribute
     uint256 public rewardPerShare;
+
     // keeps track of currently withdrwawn but not yet claimed tokens
     uint256 public withdrawalTokenPool;
+
     // keeps track of withdrawan but not yet claimed shares in case of slashing
     uint256 public withdrawalSharesPool;
 
@@ -87,7 +95,14 @@ contract Delegation is ERC20Upgradeable {
     function stake(uint256 amount, uint256 minShares)
         external
         returns (uint256 sharesMinted)
-    {}
+    {
+        sharesMinted = _buyShares(amount, minShares);
+
+        require(
+            stakingProvider.depositFunds(validatorId, amount, _msgSender()),
+            "deposit failed"
+        );
+    }
 
     function unstake(uint256 claimAmount, uint256 maximumSharesToBurn)
         external
@@ -111,7 +126,10 @@ contract Delegation is ERC20Upgradeable {
     }
 
     /// @notice Delegate available token rewards
-    function stakeRewards() external returns (uint256 sharesMinted) {}
+    function stakeRewards() external returns (uint256 sharesMinted) {
+        uint256 tokens = _withdrawReward(_msgSender());
+        return _buyShares(tokens, 0);
+    }
 
     function claimTokens(uint256 _nonce) external returns (uint256) {
         DelegatorUnbond memory unbond = unbonds[msg.sender][_nonce];
@@ -127,7 +145,7 @@ contract Delegation is ERC20Upgradeable {
         withdrawalTokenPool -= tokensToClaim;
 
         require(
-            stakingProvider.transferFunds(
+            stakingProvider.withdrawFunds(
                 validatorId,
                 tokensToClaim,
                 msg.sender
@@ -141,38 +159,55 @@ contract Delegation is ERC20Upgradeable {
     }
 
     /** PRIVATE METHODS */
-    function _calculateReward(address user, uint256 _rewardPerShare)
+    function _calculateRewardPerShareWithRewards(uint256 accumulatedReward)
         private
         view
         returns (uint256)
     {
-        uint256 shares = balanceOf(user);
+        uint256 _rewardPerShare = rewardPerShare;
+        if (accumulatedReward != 0) {
+            uint256 totalShares = totalSupply();
+
+            if (totalShares != 0) {
+                _rewardPerShare +=
+                    (accumulatedReward * REWARD_PRECISION) /
+                    totalShares;
+            }
+        }
+
+        return _rewardPerShare;
+    }
+
+    function _withdrawReward(address _user)
+        private
+        returns (uint256 liquidRewards)
+    {
+        uint256 shares = mintedShares[_user][stakingProvider.epoch()];
         if (shares == 0) {
             return 0;
         }
 
-        // uint256 _initialRewardPerShare = initalRewardPerShare[user];
-        // if (_initialRewardPerShare == _rewardPerShare) {
-        //     return 0;
-        // }
+        // try get reward per share at stake epoch for the user
+        uint256 _validatorId = validatorId;
+        uint256 _startingEpoch = stakeEpoch[_user];
+        uint256 _initialRewardPerShare = stakingProvider
+            .getDelegatorsRewardAtEpoch(_validatorId, _startingEpoch) /
+            totalMintedShares[_startingEpoch];
 
-        // return
-        //     ((_rewardPerShare - _initialRewardPerShare) * shares) /
-        //     REWARD_PRECISION;
-    }
+        // try to get current reward per share value
+        uint256 _rewardPerShare = _calculateRewardPerShareWithRewards(
+            stakingProvider.withdrawDelegatorsReward(_validatorId)
+        );
 
-    function _withdrawReward(address user)
-        private
-        returns (uint256 liquidRewards)
-    {
-        // uint256 _rewardPerShare = _calculateRewardPerShareWithRewards(
-        //     stakeManager.withdrawDelegatorsReward(validatorId)
-        // );
-        uint256 _rewardPerShare = 0;
-        liquidRewards = _calculateReward(user, _rewardPerShare);
+        if (_initialRewardPerShare == _rewardPerShare) {
+            return 0;
+        }
+
+        liquidRewards =
+            ((_rewardPerShare - _initialRewardPerShare) * shares) /
+            REWARD_PRECISION;
 
         rewardPerShare = _rewardPerShare;
-        startingEpoch[user] = stakingProvider.epoch();
         return liquidRewards;
     }
 
@@ -183,7 +218,7 @@ contract Delegation is ERC20Upgradeable {
         withdrawnReward = _withdrawReward(user);
         if (withdrawnReward != 0) {
             require(
-                stakingProvider.transferFunds(
+                stakingProvider.withdrawFunds(
                     validatorId,
                     withdrawnReward,
                     user
@@ -233,10 +268,37 @@ contract Delegation is ERC20Upgradeable {
         uint256 shares = (amount * EXCHANGE_RATE_PRECISION) / rate;
         require(shares >= minShares);
 
-        _mint(_msgSender(), amount);
+        address user = _msgSender();
+
+        _mint(user, shares);
+
+        uint256 epoch = stakingProvider.epoch();
+
+        // when shares are purchased, rewards must be given after 1 epoch for these shares
+        uint256 _totalMintedShares = totalMintedShares[epoch + 1];
+        if (_totalMintedShares == 0) {
+            // first shares purchase within current epoch
+            _totalMintedShares = totalMintedShares[epoch];
+        }
+
+        // save total shares for the next epoch, current epoch stays untouched
+        totalMintedShares[epoch + 1] = _totalMintedShares + shares;
+
+        uint256 userShares = mintedShares[user][epoch + 1];
+        if (userShares == 0) {
+            // first time stake for the future epoch, bring shares balance from the past
+            userShares = mintedShares[user][epoch];
+        }
+
+        mintedShares[user][epoch + 1] = userShares + shares;
 
         // clamp amount of tokens in case resulted shares requires less tokens than anticipated
         amount = (rate * shares) / EXCHANGE_RATE_PRECISION;
+
+        // delete previous balance
+        delete mintedShares[user][stakeEpoch[user]];
+
+        stakeEpoch[user] = epoch; // rewards are calculated based on future balance
 
         stakingProvider.onDelegation(validatorId, amount, true);
 

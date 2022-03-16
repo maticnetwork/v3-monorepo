@@ -13,7 +13,7 @@ import "./ValidatorSlot.sol";
 import "./Delegation.sol";
 import "../ChainConfig.sol";
 
-contract StakingSerrvice is
+contract StakingService is
     Initializable,
     OwnableUpgradeable,
     Lockable,
@@ -54,7 +54,7 @@ contract StakingSerrvice is
     // validator id => ( epoch => delegators staked tokens )
     mapping(uint256 => mapping(uint256 => uint256)) public delegatedTokens;
 
-    // epoch => reward per share
+    // epoch => reward per share for all validators
     mapping(uint256 => uint256) public sharedRewards;
 
     // validator id => ( epoch => reward per share )
@@ -126,6 +126,7 @@ contract StakingSerrvice is
                 getTotalLockedTokens());
 
         delete totalLockedTokens[_currentEpoch - 1];
+        // TODO clean up validatorTokens and delegatedTokens for each validator
         currentEpoch = _currentEpoch;
     }
 
@@ -209,10 +210,10 @@ contract StakingSerrvice is
         // delay tokens arrival by 1 epoch
         _currentEpoch++;
 
-        uint256 _currentDelegatedTokens = delegatedTokens[_validatorId][
+        uint256 _futureDelegatedTokens = delegatedTokens[_validatorId][
             _currentEpoch
         ];
-        if (_currentDelegatedTokens == 0) {
+        if (_futureDelegatedTokens == 0) {
             // if it's a first time stake, move values from previous stake epoch
             uint256 _lastStakeEpoch = validators[_validatorId].lastStakeEpoch;
             delegatedTokens[_validatorId][_currentEpoch] = delegatedTokens[
@@ -224,21 +225,84 @@ contract StakingSerrvice is
 
         if (_lockTokens) {
             delegatedTokens[_validatorId][_currentEpoch] =
-                _currentDelegatedTokens +
+                _futureDelegatedTokens +
                 _tokenAmount;
+            _setTotalLockedTokens(_currentEpoch, _tokenAmount, true);
         } else {
             delegatedTokens[_validatorId][_currentEpoch] =
-                _currentDelegatedTokens -
+                _futureDelegatedTokens -
                 _tokenAmount;
+            _setTotalLockedTokens(_currentEpoch, _tokenAmount, false);
         }
     }
 
-    function transferFunds(
-        uint256 validatorId,
-        uint256 amount,
-        address to
-    ) external override onlyDelegation(validatorId) returns (bool) {
-        return token.transfer(to, amount);
+    /** Delegation utility methods */
+
+    function getDelegatorsRewardAtEpoch(uint256 _validatorId, uint256 _epoch)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 initialRewardPerShare = sharedRewards[_epoch];
+        initialRewardPerShare =
+            validatorRewards[_validatorId][_epoch] +
+            initialRewardPerShare;
+
+        uint256 nextEpoch = _epoch + 1;
+        uint256 currentRewardPerShare = sharedRewards[nextEpoch];
+        currentRewardPerShare =
+            validatorRewards[_validatorId][nextEpoch] +
+            currentRewardPerShare;
+
+        uint256 reward = _calculateReward(
+            delegatedTokens[_validatorId][_epoch],
+            initialRewardPerShare,
+            currentRewardPerShare
+        );
+
+        uint256 _delegatedTokens = delegatedTokens[_validatorId][nextEpoch];
+        uint256 totalTokens = validatorTokens[_validatorId][nextEpoch] +
+            _delegatedTokens;
+
+        (, uint256 delegatorsReward) = _getValidatorAndDelegationReward(
+            _validatorId,
+            _delegatedTokens,
+            reward,
+            totalTokens
+        );
+
+        return delegatorsReward;
+    }
+
+    function withdrawDelegatorsReward(uint256 _validatorId)
+        external
+        override
+        onlyDelegation(_validatorId)
+        returns (uint256)
+    {
+        _updateRewardsAndCommit(_validatorId);
+
+        uint256 totalReward = validators[_validatorId]
+            .accumulatedDelegatorsReward;
+        validators[_validatorId].accumulatedDelegatorsReward = 0;
+        return totalReward;
+    }
+
+    function withdrawFunds(
+        uint256 _validatorId,
+        uint256 _amount,
+        address _to
+    ) external override onlyDelegation(_validatorId) returns (bool) {
+        return token.transfer(_to, _amount);
+    }
+
+    function depositFunds(
+        uint256 _validatorId,
+        uint256 _amount,
+        address _from
+    ) external override onlyDelegation(_validatorId) returns (bool) {
+        return token.transferFrom(_from, address(this), _amount);
     }
 
     /** GOVERNANCE METHODS */
@@ -248,18 +312,6 @@ contract StakingSerrvice is
 
     function unlock() public onlyOwner {
         _unlock();
-    }
-
-    function withdrawDelegatorsReward(uint256 _validatorId)
-        public
-        onlyDelegation(_validatorId)
-        returns (uint256)
-    {
-        _updateRewardsAndCommit(_validatorId);
-
-        uint256 tokens = validators[_validatorId].accumulatedDelegatorsReward;
-        validators[_validatorId].accumulatedDelegatorsReward = 0;
-        return tokens;
     }
 
     /** PRIVATE METHODS */
@@ -282,9 +334,18 @@ contract StakingSerrvice is
 
         // attempt to save gas in case if rewards were updated previosuly
         if (rewardEpoch < _currentEpoch) {
+            // combine per validator rewards with shared rewards
             uint256 initialRewardPerShare = sharedRewards[rewardEpoch];
-            uint256 currentRewardPerShare = sharedRewards[_currentEpoch];
+            initialRewardPerShare =
+                validatorRewards[_validatorId][rewardEpoch] +
+                initialRewardPerShare;
 
+            uint256 currentRewardPerShare = sharedRewards[_currentEpoch];
+            currentRewardPerShare =
+                validatorRewards[_validatorId][_currentEpoch] +
+                currentRewardPerShare;
+
+            // get tokens
             uint256 _validatorTokens = validatorTokens[_validatorId][
                 _currentEpoch
             ];
@@ -294,19 +355,12 @@ contract StakingSerrvice is
 
             if (_delegatedToken > 0) {
                 uint256 totalTokens = _delegatedToken + _validatorTokens;
-                initialRewardPerShare =
-                    validatorRewards[_validatorId][rewardEpoch] +
-                    initialRewardPerShare;
-                currentRewardPerShare =
-                    validatorRewards[_validatorId][_currentEpoch] +
-                    currentRewardPerShare;
 
                 _increaseValidatorRewardWithDelegation(
                     _validatorId,
                     _validatorTokens,
                     _delegatedToken,
                     _calculateReward(
-                        _validatorId,
                         totalTokens,
                         currentRewardPerShare,
                         initialRewardPerShare
@@ -314,7 +368,6 @@ contract StakingSerrvice is
                 );
             } else {
                 validators[_validatorId].accumulatedReward += _calculateReward(
-                    _validatorId,
                     _validatorTokens,
                     currentRewardPerShare,
                     initialRewardPerShare
@@ -377,7 +430,6 @@ contract StakingSerrvice is
     }
 
     function _calculateReward(
-        uint256 validatorId,
         uint256 stake,
         uint256 currentRewardPerStake,
         uint256 initialRewardPerStake
