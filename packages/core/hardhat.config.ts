@@ -25,12 +25,16 @@ task('accounts', 'Prints the list of accounts', async(taskArgs, hre) => {
 // Go to https://hardhat.org/config/ to learn more
 
 const config: HardhatUserConfig = {
-  solidity: '0.8.4',
   networks: {
     ropsten: {
       url: process.env.ROPSTEN_URL || '',
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
+    },
+    hardhat: {
+      blockGasLimit: 100_000_000,
+      gas: 100_000_000,
+      allowUnlimitedContractSize: true
     }
   },
   gasReporter: {
@@ -43,6 +47,18 @@ const config: HardhatUserConfig = {
   paths: {
     sourceTemplates: 'contracts',
     sources: 'contracts-out'
+  },
+  solidity: {
+    version: '0.8.12',
+    settings: {
+      metadata: {
+        bytecodeHash: 'none'
+      },
+      optimizer: {
+        enabled: true,
+        runs: 800
+      }
+    }
   }
 }
 

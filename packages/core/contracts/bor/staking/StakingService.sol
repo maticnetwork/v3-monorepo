@@ -66,12 +66,14 @@ contract StakingService is
     function initialize(
         DelegationProxyCreator _delegationCreator,
         IStakingLogger _logger,
-        ValidatorSlot _slots
+        ValidatorSlot _slots,
+        IERC20 _token
     ) external initializer {
         __Ownable_init();
         delegationCreator = _delegationCreator;
         logger = _logger;
         slots = _slots;
+        token = _token;
     }
 
     /** MODIFIERS */
@@ -153,13 +155,15 @@ contract StakingService is
         address signer = _getSignerAddress(_signerPubkey);
         uint256 _currentEpoch = currentEpoch;
         uint256 validatorId = slots.mint(_slotOwner);
-
+        IStakingLogger _logger = logger;
         uint256 newTotalStaked = getTotalLockedTokens() + _tokenAmount;
 
         validators[validatorId] = Validator({
             deactivationEpoch: 0,
             signer: signer,
-            delegation: Delegation(delegationCreator.create(validatorId)),
+            delegation: Delegation(
+                delegationCreator.create(validatorId, address(_logger))
+            ),
             rewardEpoch: _currentEpoch + 1,
             commissionRate: 0,
             accumulatedReward: 0,
@@ -170,7 +174,7 @@ contract StakingService is
         signerToValidatorId[signer] = validatorId;
         _setTotalLockedTokens(_currentEpoch + 1, _tokenAmount, true);
 
-        logger.logValidatorSlotAcquired(
+        _logger.logValidatorSlotAcquired(
             _signerPubkey,
             validatorId,
             _currentEpoch,

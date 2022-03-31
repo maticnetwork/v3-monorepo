@@ -9,8 +9,6 @@
     "packages/*"
   ],
   "dependencies": {
-    "@openzeppelin/contracts": "^4.5.0",
-    "@openzeppelin/contracts-upgradeable": "^4.5.1",
     "dotenv": "^16.0.0",
     "husky": "^7.0.4"
   }
