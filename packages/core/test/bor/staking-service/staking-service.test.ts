@@ -10,12 +10,6 @@ runTestWithContext('StakingService', function() {
     this.contracts.stakingService = stakingService
     this.contracts.stakingToken = token
     this.contracts.validatorSlot = validatorSlot
-
-    const allowance = ethers.utils.parseEther('100000')
-    for (const delegator of this.signers.delegators) {
-      await this.contracts.stakingToken.mint(await delegator.getAddress(), allowance)
-      await this.contracts.stakingToken.increaseAllowance(this.contracts.stakingService.address, allowance)
-    }
   })
 
   shouldBehaveLikeStaking()

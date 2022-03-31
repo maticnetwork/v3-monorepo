@@ -1,5 +1,5 @@
-import { BigNumber, Signer } from 'ethers'
-import { waffle, artifacts } from 'hardhat'
+import { Signer } from 'ethers'
+import { waffle, artifacts, ethers } from 'hardhat'
 import { Delegation, DelegationBeacon, DelegationProxyCreator, ERC20Token, StakingLogger, StakingService, ValidatorSlot } from 'typechain-types'
 import { deployProxy } from './deployers'
 
@@ -34,6 +34,12 @@ export async function stakingServiceFixture(signers: Signer[]): Promise<StakingS
   )
 
   await validatorSlot.transferOwnership(stakingService.address)
+
+  const allowance = ethers.utils.parseEther('100000')
+  for (const delegator of signers) {
+    await token.mint(await delegator.getAddress(), allowance)
+    await token.increaseAllowance(stakingService.address, allowance)
+  }
 
   return {
     validatorSlot,
