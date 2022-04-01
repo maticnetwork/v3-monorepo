@@ -1,3 +1,3 @@
-export * from './compile'
-export * from './verify-bytecode'
-export * from './verify-storage'
+import './compile'
+import './verify-bytecode'
+import './verify-storage'

@@ -1,6 +1,6 @@
 import { Signer } from 'ethers'
 import { waffle, artifacts, ethers } from 'hardhat'
-import { Delegation, DelegationBeacon, DelegationProxyCreator, ERC20Token, StakingLogger, StakingService, ValidatorSlot } from 'typechain-types'
+import { ChainConfig, Delegation, DelegationBeacon, DelegationProxyCreator, ERC20Token, StakingLogger, StakingService, ValidatorSlot } from 'typechain-types'
 import { deployProxy } from './deployers'
 
 const { deployContract } = waffle
@@ -10,6 +10,7 @@ type StakingServiceFixture = {
     stakingService: StakingService;
     logger: StakingLogger;
     validatorSlot: ValidatorSlot;
+    config: ChainConfig;
 }
 
 export async function stakingServiceFixture(signers: Signer[]): Promise<StakingServiceFixture> {
@@ -24,13 +25,16 @@ export async function stakingServiceFixture(signers: Signer[]): Promise<StakingS
   const validatorSlot = <ValidatorSlot> await deployContract(deployer, artifacts.readArtifactSync('ValidatorSlot'))
   const stakingService = <StakingService> await deployProxy(deployer, 'StakingService')
   const logger = <StakingLogger> await deployProxy(deployer, 'StakingLogger')
+  const config = <ChainConfig> await deployProxy(deployer, 'ChainConfig')
 
+  await config.connect(governance).initialize()
   await logger.connect(governance).initialize(stakingService.address)
   await stakingService.connect(governance).initialize(
     delegationProxyCreator.address,
     logger.address,
     validatorSlot.address,
-    token.address
+    token.address,
+    config.address
   )
 
   await validatorSlot.transferOwnership(stakingService.address)
@@ -38,13 +42,14 @@ export async function stakingServiceFixture(signers: Signer[]): Promise<StakingS
   const allowance = ethers.utils.parseEther('100000')
   for (const delegator of signers) {
     await token.mint(await delegator.getAddress(), allowance)
-    await token.increaseAllowance(stakingService.address, allowance)
+    await token.connect(delegator).increaseAllowance(stakingService.address, allowance)
   }
 
   return {
-    validatorSlot,
-    logger,
-    token,
-    stakingService: stakingService.connect(governance)
+    validatorSlot: validatorSlot.connect(governance),
+    logger: logger.connect(governance),
+    token: token.connect(governance),
+    stakingService: stakingService.connect(governance),
+    config: config.connect(governance)
   }
 }

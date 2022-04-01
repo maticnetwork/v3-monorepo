@@ -1,8 +1,8 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract ChainConfig is Ownable {
+contract ChainConfig is OwnableUpgradeable {
     /// @dev How much maximum gas within a single block on Bor
     uint256 public blockGasLimit;
 
@@ -14,6 +14,10 @@ contract ChainConfig is Ownable {
 
     /// @dev How long unbonding of tokens take in seconds
     uint256 public unbondingPeriod;
+
+    function initialize() external initializer {
+        __Ownable_init();
+    }
 
     function setBlockGasLimit(uint256 _blockGasLimit) external onlyOwner {
         blockGasLimit = _blockGasLimit;

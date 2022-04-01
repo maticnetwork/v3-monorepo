@@ -12,6 +12,7 @@ import "./interfaces/IRewardDistributor.sol";
 import "./ValidatorSlot.sol";
 import "./Delegation.sol";
 import "../ChainConfig.sol";
+import "hardhat/console.sol";
 
 contract StakingService is
     Initializable,
@@ -67,19 +68,25 @@ contract StakingService is
         DelegationProxyCreator _delegationCreator,
         IStakingLogger _logger,
         ValidatorSlot _slots,
-        IERC20 _token
+        IERC20 _token,
+        ChainConfig _config
     ) external initializer {
         __Ownable_init();
         delegationCreator = _delegationCreator;
         logger = _logger;
         slots = _slots;
         token = _token;
+        config = _config;
     }
 
     /** MODIFIERS */
-    modifier onlyValidatorSlotOwner(uint256 validatorId) {
-        require(slots.ownerOf(validatorId) == msg.sender);
+    modifier onlyValidatorSlotOwner(uint256 _validatorId) {
+        _assertOnlyValidator(_validatorId);
         _;
+    }
+
+    function _assertOnlyValidator(uint256 _validatorId) private {
+        require(slots.ownerOf(_validatorId) == msg.sender, "not validator");
     }
 
     modifier onlyDelegation(uint256 validatorId) {
@@ -121,15 +128,21 @@ contract StakingService is
 
         uint256 _currentEpoch = currentEpoch;
         _currentEpoch++;
+        currentEpoch = _currentEpoch;
 
         sharedRewards[_currentEpoch] =
             sharedRewards[_currentEpoch - 1] +
             ((config.checkpointReward() * REWARD_PRECISION) /
                 getTotalLockedTokens());
 
+        totalLockedTokens[_currentEpoch + 1] = totalLockedTokens[_currentEpoch];
+
         delete totalLockedTokens[_currentEpoch - 1];
+
+        console.log('getTotalLockedTokens', getTotalLockedTokens());
+        console.log('reward', (config.checkpointReward() * REWARD_PRECISION));
+
         // TODO clean up validatorTokens and delegatedTokens for each validator
-        currentEpoch = _currentEpoch;
     }
 
     /// @dev This methods increase reward for a single validator. Called after each mined block on Bor.
@@ -144,7 +157,10 @@ contract StakingService is
         require(isValidator(validatorId));
 
         // increase per validator reward
-        validatorRewards[validatorId][currentEpoch] += _reward;
+        validatorRewards[validatorId][currentEpoch] += (_reward * REWARD_PRECISION / getTotalLockedTokens());
+
+        console.log('currentEpoch', currentEpoch);
+        console.log('distribute reward', validatorRewards[validatorId][currentEpoch]);
     }
 
     function claimValidatorSlot(
@@ -155,8 +171,8 @@ contract StakingService is
         address signer = _getSignerAddress(_signerPubkey);
         uint256 _currentEpoch = currentEpoch;
         uint256 validatorId = slots.mint(_slotOwner);
-        IStakingLogger _logger = logger;
         uint256 newTotalStaked = getTotalLockedTokens() + _tokenAmount;
+        IStakingLogger _logger = logger;
 
         validators[validatorId] = Validator({
             deactivationEpoch: 0,
@@ -168,10 +184,11 @@ contract StakingService is
             commissionRate: 0,
             accumulatedReward: 0,
             accumulatedDelegatorsReward: 0,
-            lastStakeEpoch: _currentEpoch
+            lastStakeEpoch: _currentEpoch + 1
         });
 
         signerToValidatorId[signer] = validatorId;
+        _setValidatorTokens(validatorId, _currentEpoch + 1, _tokenAmount);
         _setTotalLockedTokens(_currentEpoch + 1, _tokenAmount, true);
 
         _logger.logValidatorSlotAcquired(
@@ -195,14 +212,45 @@ contract StakingService is
 
     /// @notice Stake some tokens or available rewards
     function stake(
-        uint256 validatorId,
-        uint256 tokenAmount,
-        bool stakeRewards
-    ) external onlyValidatorSlotOwner(validatorId) {
+        uint256 _validatorId,
+        uint256 _tokenAmount,
+        bool _stakeRewards
+    ) external onlyValidatorSlotOwner(_validatorId) {
         // require(currentValidatorSetSize() < validatorThreshold, "no more slots");
         // require(amount >= minDeposit, "not enough deposit");
-        token.transferFrom(msg.sender, address(this), tokenAmount);
-        _setTotalLockedTokens(currentEpoch + 1, tokenAmount, true);
+
+        token.transferFrom(msg.sender, address(this), _tokenAmount);
+
+        uint256 _currentEpoch = currentEpoch;
+        (, uint256 _lockedTokens) = _getAndCommitValidatorTokens(_validatorId, _currentEpoch + 1);
+        console.log('stake: _lockedTokens', _lockedTokens);
+        _lockedTokens += _tokenAmount;
+
+        // update rewards, because stake is changing
+        _updateRewardsAndCommit(_validatorId);
+
+        if (_stakeRewards) {
+            // collect accumulated rewards and stake
+            uint256 reward = _collectReward(_validatorId);
+            console.log('collect reward', reward);
+            _tokenAmount += reward;
+        }
+
+        _setValidatorTokens(_validatorId, _currentEpoch + 1, _lockedTokens);
+        _setTotalLockedTokens(
+            _currentEpoch + 1,
+            _tokenAmount,
+            true
+        );
+    }
+
+    function collectReward(uint256 _validatorId)
+        external
+        onlyValidatorSlotOwner(_validatorId)
+    {
+        _updateRewardsAndCommit(_validatorId);
+        uint256 reward = _collectReward(_validatorId);
+        require(token.transfer(msg.sender, reward));
     }
 
     function onDelegation(
@@ -214,18 +262,7 @@ contract StakingService is
         // delay tokens arrival by 1 epoch
         _currentEpoch++;
 
-        uint256 _futureDelegatedTokens = delegatedTokens[_validatorId][
-            _currentEpoch
-        ];
-        if (_futureDelegatedTokens == 0) {
-            // if it's a first time stake, move values from previous stake epoch
-            uint256 _lastStakeEpoch = validators[_validatorId].lastStakeEpoch;
-            delegatedTokens[_validatorId][_currentEpoch] = delegatedTokens[
-                _validatorId
-            ][_lastStakeEpoch];
-
-            validators[_validatorId].lastStakeEpoch = _currentEpoch;
-        }
+        (uint256 _futureDelegatedTokens, ) = _getAndCommitValidatorTokens(_validatorId, _currentEpoch);
 
         if (_lockTokens) {
             delegatedTokens[_validatorId][_currentEpoch] =
@@ -320,15 +357,46 @@ contract StakingService is
 
     /** PRIVATE METHODS */
 
+    function _getAndCommitValidatorTokens(uint256 _validatorId, uint256 _currentEpoch) private returns(uint256, uint256) {
+        uint256 _lastStakeEpoch = validators[_validatorId].lastStakeEpoch;
+        bool updateStakeEpoch = false;
+        
+        uint256 _delegatedTokens = delegatedTokens[_validatorId][_currentEpoch];
+        if (_delegatedTokens == 0) {
+            updateStakeEpoch = true;
+            _delegatedTokens = delegatedTokens[
+                _validatorId
+            ][_lastStakeEpoch];
+            delegatedTokens[_validatorId][_currentEpoch] = _delegatedTokens;
+        }
+
+        uint256 _validatorTokens = validatorTokens[_validatorId][_currentEpoch];
+        if (_validatorTokens == 0) {
+            updateStakeEpoch = true;
+            _validatorTokens = validatorTokens[_validatorId][_lastStakeEpoch];
+            validatorTokens[_validatorId][_currentEpoch] = _validatorTokens;
+        }
+
+        if (updateStakeEpoch) {
+            validators[_validatorId].lastStakeEpoch = _currentEpoch;
+        }
+
+        return (_delegatedTokens, _validatorTokens);
+    }
+
     function _setTotalLockedTokens(
-        uint256 _epoch,
-        uint256 tokens,
-        bool add
+        uint256 _nextEpoch,
+        uint256 _tokens,
+        bool _add
     ) private {
-        if (add) {
-            totalLockedTokens[_epoch] += tokens;
+        #if hardhat 
+        assert(_nextEpoch == currentEpoch + 1);
+        #endif
+
+        if (_add) {
+            totalLockedTokens[_nextEpoch] += _tokens;
         } else {
-            totalLockedTokens[_epoch] -= tokens;
+            totalLockedTokens[_nextEpoch] -= _tokens;
         }
     }
 
@@ -336,8 +404,11 @@ contract StakingService is
         uint256 rewardEpoch = validators[_validatorId].rewardEpoch;
         uint256 _currentEpoch = currentEpoch;
 
+        console.log('_updateRewardsAndCommit');
+
         // attempt to save gas in case if rewards were updated previosuly
         if (rewardEpoch < _currentEpoch) {
+            console.log('_updateRewardsAndCommit: update reward');
             // combine per validator rewards with shared rewards
             uint256 initialRewardPerShare = sharedRewards[rewardEpoch];
             initialRewardPerShare =
@@ -349,13 +420,18 @@ contract StakingService is
                 validatorRewards[_validatorId][_currentEpoch] +
                 currentRewardPerShare;
 
+            uint256 stakeEpoch = validators[_validatorId].lastStakeEpoch;
             // get tokens
             uint256 _validatorTokens = validatorTokens[_validatorId][
-                _currentEpoch
+                stakeEpoch
             ];
             uint256 _delegatedToken = delegatedTokens[_validatorId][
-                _currentEpoch
+                stakeEpoch
             ];
+
+            console.log('_updateRewardsAndCommit: _validatorTokens', _validatorTokens);
+            console.log('_updateRewardsAndCommit: initialRewardPerShare', initialRewardPerShare);
+            console.log('_updateRewardsAndCommit: currentRewardPerShare', currentRewardPerShare);
 
             if (_delegatedToken > 0) {
                 uint256 totalTokens = _delegatedToken + _validatorTokens;
@@ -454,5 +530,19 @@ contract StakingService is
             "invalid signer"
         );
         return signer;
+    }
+
+    function _setValidatorTokens(
+        uint256 _validatorId,
+        uint256 _epoch,
+        uint256 _amount
+    ) private {
+        validatorTokens[_validatorId][_epoch] = _amount;
+    }
+
+    function _collectReward(uint256 _validatorId) private returns (uint256) {
+        uint256 reward = validators[_validatorId].accumulatedReward;
+        validators[_validatorId].accumulatedReward = 0;
+        return reward;
     }
 }

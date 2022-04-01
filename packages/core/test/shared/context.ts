@@ -1,12 +1,13 @@
 import { Fixture } from 'ethereum-waffle'
 import { Signer, Wallet } from 'ethers'
 import { ethers, waffle } from 'hardhat'
-import { ERC20Token, StakingService, ValidatorSlot } from 'typechain-types'
+import { ChainConfig, ERC20Token, StakingService, ValidatorSlot } from 'typechain-types'
 
 export interface Contracts {
     stakingService: StakingService;
-    stakingToken: ERC20Token
-    validatorSlot: ValidatorSlot
+    stakingToken: ERC20Token;
+    validatorSlot: ValidatorSlot;
+    config: ChainConfig;
 }
 
 export interface Signers {

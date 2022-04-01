@@ -9,9 +9,9 @@
   "scripts": {
     "husky:precommit": "yarn lint:fix",
     "compile": "yarn hardhat compile",
-    "test": "yarn hardhat test",
-    "lint": "npx eslint --cache \"src/**/*.{js,jsx,ts,tsx}\" && npx prettier --list-different 'contracts/**/*.sol'",
-    "lint:fix": "npx eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\" && prettier --write 'contracts/**/*.sol'"
+    "test": "yarn compile && yarn hardhat test",
+    "lint": "npx eslint --cache \"src/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "npx eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\""
   },
   "engines": {
     "node": ">=14"
